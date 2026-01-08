@@ -44,5 +44,15 @@ wire-seek -6 example.com           # Force IPv6
 - `main.go` - CLI entry point, argument parsing, and result display
 - `mtu/` - MTU discovery package
   - `discover.go` - Binary search PMTUD algorithm using ICMP echo with DF bit
+    - IPv4 range: 576-1500 bytes (RFC 791 minimum)
+    - IPv6 range: 1280-1500 bytes (RFC 8200 minimum)
+    - Verbose mode (`-v`) shows detailed socket and error diagnostics
   - `wireguard.go` - WireGuard overhead calculations (60 bytes IPv4, 80 bytes IPv6)
-  - `df_linux.go`, `df_darwin.go`, `df_other.go` - Platform-specific Don't Fragment bit handling
+  - `df_linux.go`, `df_darwin.go`, `df_windows.go`, `df_other.go` - Platform-specific Don't Fragment bit handling
+
+## Key Implementation Details
+
+- **Linux**: Uses `IP_MTU_DISCOVER` socket option with `IP_PMTUDISC_DO` to set DF bit
+- **Windows**: Uses `IP_DONTFRAGMENT` socket option
+- **macOS/Darwin**: Uses control messages via `SetControlMessage`
+- **Unprivileged ICMP**: Falls back to UDP-based ICMP on Linux 3.0+ when raw sockets unavailable
