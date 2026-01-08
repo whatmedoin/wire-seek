@@ -108,8 +108,11 @@ func TestConstants(t *testing.T) {
 	if ICMPHeaderSize != 8 {
 		t.Errorf("ICMPHeaderSize = %d, want 8", ICMPHeaderSize)
 	}
-	if MinMTU != 1280 {
-		t.Errorf("MinMTU = %d, want 1280", MinMTU)
+	if MinMTU_IPv4 != 576 {
+		t.Errorf("MinMTU_IPv4 = %d, want 576", MinMTU_IPv4)
+	}
+	if MinMTU_IPv6 != 1280 {
+		t.Errorf("MinMTU_IPv6 = %d, want 1280", MinMTU_IPv6)
 	}
 	if MaxMTU != 1500 {
 		t.Errorf("MaxMTU = %d, want 1500", MaxMTU)
