@@ -12,8 +12,10 @@ import (
 )
 
 const (
-	// MinMTU is the minimum MTU for IPv6 (also reasonable for IPv4)
-	MinMTU = 1280
+	// MinMTU_IPv4 is the minimum MTU for IPv4 networks (RFC 791)
+	MinMTU_IPv4 = 576
+	// MinMTU_IPv6 is the minimum MTU for IPv6 networks (RFC 8200)
+	MinMTU_IPv6 = 1280
 	// MaxMTU is the standard Ethernet MTU
 	MaxMTU = 1500
 	// ICMPHeaderSize is the size of ICMP header
@@ -45,7 +47,10 @@ func NewDiscoverer(target net.IP, verbose bool) *Discoverer {
 
 // FindPathMTU uses binary search to find the path MTU to the target
 func (d *Discoverer) FindPathMTU() (int, error) {
-	low := MinMTU
+	low := MinMTU_IPv4
+	if d.isIPv6 {
+		low = MinMTU_IPv6
+	}
 	high := MaxMTU
 
 	fmt.Printf("Discovering path MTU (range: %d-%d)...\n", low, high)
@@ -136,6 +141,11 @@ func (d *Discoverer) pingWithDF(payloadSize int) bool {
 			}
 			return false
 		}
+		if d.verbose {
+			fmt.Fprintf(os.Stderr, "  Using unprivileged ICMP (%s)\n", network)
+		}
+	} else if d.verbose {
+		fmt.Fprintf(os.Stderr, "  Using raw ICMP socket (%s)\n", network)
 	}
 	defer conn.Close()
 
@@ -160,11 +170,17 @@ func (d *Discoverer) pingWithDF(payloadSize int) bool {
 
 	msgBytes, err := msg.Marshal(nil)
 	if err != nil {
+		if d.verbose {
+			fmt.Fprintf(os.Stderr, "  Error marshaling ICMP message: %v\n", err)
+		}
 		return false
 	}
 
 	// Set deadline
 	if err := conn.SetDeadline(time.Now().Add(pingTimeout)); err != nil {
+		if d.verbose {
+			fmt.Fprintf(os.Stderr, "  Error setting deadline: %v\n", err)
+		}
 		return false
 	}
 
@@ -183,6 +199,9 @@ func (d *Discoverer) pingWithDF(payloadSize int) bool {
 
 	// Send packet
 	if _, err := conn.WriteTo(msgBytes, dst); err != nil {
+		if d.verbose {
+			fmt.Fprintf(os.Stderr, "  Error sending packet: %v\n", err)
+		}
 		return false
 	}
 
@@ -190,18 +209,32 @@ func (d *Discoverer) pingWithDF(payloadSize int) bool {
 	reply := make([]byte, 1500)
 	n, _, err := conn.ReadFrom(reply)
 	if err != nil {
+		if d.verbose {
+			fmt.Fprintf(os.Stderr, "  Error reading reply: %v\n", err)
+		}
 		return false
 	}
 
 	// Parse reply
 	rm, err := icmp.ParseMessage(proto, reply[:n])
 	if err != nil {
+		if d.verbose {
+			fmt.Fprintf(os.Stderr, "  Error parsing reply: %v\n", err)
+		}
 		return false
 	}
 
 	// Check if it's an echo reply
 	if d.isIPv6 {
-		return rm.Type == ipv6.ICMPTypeEchoReply
+		success := rm.Type == ipv6.ICMPTypeEchoReply
+		if d.verbose && !success {
+			fmt.Fprintf(os.Stderr, "  Received unexpected ICMP type: %v\n", rm.Type)
+		}
+		return success
 	}
-	return rm.Type == ipv4.ICMPTypeEchoReply
+	success := rm.Type == ipv4.ICMPTypeEchoReply
+	if d.verbose && !success {
+		fmt.Fprintf(os.Stderr, "  Received unexpected ICMP type: %v\n", rm.Type)
+	}
+	return success
 }
