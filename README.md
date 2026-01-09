@@ -110,7 +110,7 @@ sudo wg-quick up wg0
 | Linux | amd64, arm64 | ✅ Full support |
 | macOS | amd64, arm64 | ✅ Full support |
 | FreeBSD | amd64 | ✅ Full support |
-| Windows | amd64 | ⚠️ DF bit may not work |
+| Windows | amd64 | ✅ Full support |
 
 ## License
 
