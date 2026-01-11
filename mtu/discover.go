@@ -35,24 +35,25 @@ type Discoverer struct {
 	target net.IP
 	isIPv6 bool
 	log    *output.Logger
+	minMTU int
+	maxMTU int
 }
 
 // NewDiscoverer creates a new MTU discoverer for the given target
-func NewDiscoverer(target net.IP, log *output.Logger) *Discoverer {
+func NewDiscoverer(target net.IP, log *output.Logger, minMTU, maxMTU int) *Discoverer {
 	return &Discoverer{
 		target: target,
 		isIPv6: target.To4() == nil,
 		log:    log,
+		minMTU: minMTU,
+		maxMTU: maxMTU,
 	}
 }
 
 // FindPathMTU uses binary search to find the path MTU to the target
 func (d *Discoverer) FindPathMTU() (int, error) {
-	low := MinMTU_IPv4
-	if d.isIPv6 {
-		low = MinMTU_IPv6
-	}
-	high := MaxMTU
+	low := d.minMTU
+	high := d.maxMTU
 
 	d.log.Info("Discovering path MTU (range: %d-%d)...\n", low, high)
 

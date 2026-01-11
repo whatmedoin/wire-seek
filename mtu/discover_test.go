@@ -33,7 +33,11 @@ func TestNewDiscoverer(t *testing.T) {
 	log := output.New(output.LevelNormal)
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			d := NewDiscoverer(tt.target, log)
+			minMTU := MinMTU_IPv4
+			if tt.wantIPv6 {
+				minMTU = MinMTU_IPv6
+			}
+			d := NewDiscoverer(tt.target, log, minMTU, MaxMTU)
 			if d.isIPv6 != tt.wantIPv6 {
 				t.Errorf("NewDiscoverer().isIPv6 = %v, want %v", d.isIPv6, tt.wantIPv6)
 			}
@@ -112,5 +116,70 @@ func TestConstants(t *testing.T) {
 	}
 	if MaxMTU != 1500 {
 		t.Errorf("MaxMTU = %d, want 1500", MaxMTU)
+	}
+}
+
+func TestNewDiscovererWithCustomMTU(t *testing.T) {
+	tests := []struct {
+		name      string
+		target    net.IP
+		minMTU    int
+		maxMTU    int
+		wantMin   int
+		wantMax   int
+	}{
+		{
+			name:    "Default IPv4 range",
+			target:  net.ParseIP("8.8.8.8"),
+			minMTU:  MinMTU_IPv4,
+			maxMTU:  MaxMTU,
+			wantMin: 576,
+			wantMax: 1500,
+		},
+		{
+			name:    "Default IPv6 range",
+			target:  net.ParseIP("2001:4860:4860::8888"),
+			minMTU:  MinMTU_IPv6,
+			maxMTU:  MaxMTU,
+			wantMin: 1280,
+			wantMax: 1500,
+		},
+		{
+			name:    "Custom WireGuard range",
+			target:  net.ParseIP("10.0.0.1"),
+			minMTU:  1280,
+			maxMTU:  1420,
+			wantMin: 1280,
+			wantMax: 1420,
+		},
+		{
+			name:    "Jumbo frame range",
+			target:  net.ParseIP("192.168.1.1"),
+			minMTU:  1500,
+			maxMTU:  9000,
+			wantMin: 1500,
+			wantMax: 9000,
+		},
+		{
+			name:    "Below protocol minimum (allowed with warning)",
+			target:  net.ParseIP("8.8.8.8"),
+			minMTU:  400,
+			maxMTU:  1500,
+			wantMin: 400,
+			wantMax: 1500,
+		},
+	}
+
+	log := output.New(output.LevelQuiet)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			d := NewDiscoverer(tt.target, log, tt.minMTU, tt.maxMTU)
+			if d.minMTU != tt.wantMin {
+				t.Errorf("NewDiscoverer().minMTU = %d, want %d", d.minMTU, tt.wantMin)
+			}
+			if d.maxMTU != tt.wantMax {
+				t.Errorf("NewDiscoverer().maxMTU = %d, want %d", d.maxMTU, tt.wantMax)
+			}
+		})
 	}
 }

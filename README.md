@@ -59,6 +59,8 @@ sudo wire-seek vpn.example.com       # Hostname
 sudo wire-seek -v 8.8.8.8            # Verbose mode
 sudo wire-seek -6 2001:db8::1        # Force IPv6
 sudo wire-seek -q vpn.example.com    # Quiet mode (for scripting)
+sudo wire-seek -max-mtu 1420 10.0.0.1    # Limit to WireGuard-safe range
+sudo wire-seek -max-mtu 9000 10.0.0.1    # Jumbo frame network
 ```
 
 ### Options
@@ -69,6 +71,8 @@ sudo wire-seek -q vpn.example.com    # Quiet mode (for scripting)
 | `-6` | Use IPv6 instead of IPv4 |
 | `-v` | Verbose output (shows binary search progress) |
 | `-q` | Quiet output (prints only the MTU value, for scripting) |
+| `-min-mtu` | Minimum MTU to test (default: 576 for IPv4, 1280 for IPv6) |
+| `-max-mtu` | Maximum MTU to test (default: 1500, increase for jumbo frames) |
 
 ### Example Output
 
