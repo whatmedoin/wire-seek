@@ -6,6 +6,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/yeya/wire-seek/output"
 	"golang.org/x/net/icmp"
 	"golang.org/x/net/ipv4"
 	"golang.org/x/net/ipv6"
@@ -31,17 +32,17 @@ const (
 
 // Discoverer handles MTU discovery operations
 type Discoverer struct {
-	target  net.IP
-	isIPv6  bool
-	verbose bool
+	target net.IP
+	isIPv6 bool
+	log    *output.Logger
 }
 
 // NewDiscoverer creates a new MTU discoverer for the given target
-func NewDiscoverer(target net.IP, verbose bool) *Discoverer {
+func NewDiscoverer(target net.IP, log *output.Logger) *Discoverer {
 	return &Discoverer{
-		target:  target,
-		isIPv6:  target.To4() == nil,
-		verbose: verbose,
+		target: target,
+		isIPv6: target.To4() == nil,
+		log:    log,
 	}
 }
 
@@ -53,7 +54,7 @@ func (d *Discoverer) FindPathMTU() (int, error) {
 	}
 	high := MaxMTU
 
-	fmt.Printf("Discovering path MTU (range: %d-%d)...\n", low, high)
+	d.log.Info("Discovering path MTU (range: %d-%d)...\n", low, high)
 
 	// First, verify we can reach the target at all
 	if !d.canSendSize(low) {
@@ -64,19 +65,13 @@ func (d *Discoverer) FindPathMTU() (int, error) {
 	for low < high-1 {
 		mid := (low + high + 1) / 2
 
-		if d.verbose {
-			fmt.Printf("  Testing MTU %d... ", mid)
-		}
+		d.log.Debug("  Testing MTU %d... ", mid)
 
 		if d.canSendSize(mid) {
-			if d.verbose {
-				fmt.Printf("OK\n")
-			}
+			d.log.Debug("OK\n")
 			low = mid
 		} else {
-			if d.verbose {
-				fmt.Printf("Too large\n")
-			}
+			d.log.Debug("Too large\n")
 			high = mid - 1
 		}
 	}
@@ -136,24 +131,20 @@ func (d *Discoverer) pingWithDF(payloadSize int) bool {
 		}
 		conn, err = icmp.ListenPacket(network, "")
 		if err != nil {
-			if d.verbose {
-				fmt.Fprintf(os.Stderr, "Warning: failed to create ICMP socket: %v\n", err)
-			}
+			d.log.Debug("Warning: failed to create ICMP socket: %v\n", err)
 			return false
 		}
-		if d.verbose {
-			fmt.Fprintf(os.Stderr, "  Using unprivileged ICMP (%s)\n", network)
-		}
-	} else if d.verbose {
-		fmt.Fprintf(os.Stderr, "  Using raw ICMP socket (%s)\n", network)
+		d.log.Debug("  Using unprivileged ICMP (%s)\n", network)
+	} else {
+		d.log.Debug("  Using raw ICMP socket (%s)\n", network)
 	}
 	defer conn.Close()
 
 	// Set Don't Fragment bit for IPv4 using the ipv4 package
 	if !d.isIPv6 {
 		p := conn.IPv4PacketConn()
-		if err := setDontFragmentIPv4(p); err != nil && d.verbose {
-			fmt.Fprintf(os.Stderr, "Warning: failed to set DF bit: %v\n", err)
+		if err := setDontFragmentIPv4(p); err != nil {
+			d.log.Debug("Warning: failed to set DF bit: %v\n", err)
 		}
 	}
 
@@ -170,17 +161,13 @@ func (d *Discoverer) pingWithDF(payloadSize int) bool {
 
 	msgBytes, err := msg.Marshal(nil)
 	if err != nil {
-		if d.verbose {
-			fmt.Fprintf(os.Stderr, "  Error marshaling ICMP message: %v\n", err)
-		}
+		d.log.Debug("  Error marshaling ICMP message: %v\n", err)
 		return false
 	}
 
 	// Set deadline
 	if err := conn.SetDeadline(time.Now().Add(pingTimeout)); err != nil {
-		if d.verbose {
-			fmt.Fprintf(os.Stderr, "  Error setting deadline: %v\n", err)
-		}
+		d.log.Debug("  Error setting deadline: %v\n", err)
 		return false
 	}
 
@@ -199,9 +186,7 @@ func (d *Discoverer) pingWithDF(payloadSize int) bool {
 
 	// Send packet
 	if _, err := conn.WriteTo(msgBytes, dst); err != nil {
-		if d.verbose {
-			fmt.Fprintf(os.Stderr, "  Error sending packet: %v\n", err)
-		}
+		d.log.Debug("  Error sending packet: %v\n", err)
 		return false
 	}
 
@@ -209,32 +194,28 @@ func (d *Discoverer) pingWithDF(payloadSize int) bool {
 	reply := make([]byte, 1500)
 	n, _, err := conn.ReadFrom(reply)
 	if err != nil {
-		if d.verbose {
-			fmt.Fprintf(os.Stderr, "  Error reading reply: %v\n", err)
-		}
+		d.log.Debug("  Error reading reply: %v\n", err)
 		return false
 	}
 
 	// Parse reply
 	rm, err := icmp.ParseMessage(proto, reply[:n])
 	if err != nil {
-		if d.verbose {
-			fmt.Fprintf(os.Stderr, "  Error parsing reply: %v\n", err)
-		}
+		d.log.Debug("  Error parsing reply: %v\n", err)
 		return false
 	}
 
 	// Check if it's an echo reply
 	if d.isIPv6 {
 		success := rm.Type == ipv6.ICMPTypeEchoReply
-		if d.verbose && !success {
-			fmt.Fprintf(os.Stderr, "  Received unexpected ICMP type: %v\n", rm.Type)
+		if !success {
+			d.log.Debug("  Received unexpected ICMP type: %v\n", rm.Type)
 		}
 		return success
 	}
 	success := rm.Type == ipv4.ICMPTypeEchoReply
-	if d.verbose && !success {
-		fmt.Fprintf(os.Stderr, "  Received unexpected ICMP type: %v\n", rm.Type)
+	if !success {
+		d.log.Debug("  Received unexpected ICMP type: %v\n", rm.Type)
 	}
 	return success
 }
