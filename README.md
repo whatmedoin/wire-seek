@@ -58,6 +58,7 @@ sudo wire-seek 10.0.0.1              # WireGuard peer IP
 sudo wire-seek vpn.example.com       # Hostname
 sudo wire-seek -v 8.8.8.8            # Verbose mode
 sudo wire-seek -6 2001:db8::1        # Force IPv6
+sudo wire-seek -q vpn.example.com    # Quiet mode (for scripting)
 ```
 
 ### Options
@@ -67,6 +68,7 @@ sudo wire-seek -6 2001:db8::1        # Force IPv6
 | `-target` | Target host or IP address |
 | `-6` | Use IPv6 instead of IPv4 |
 | `-v` | Verbose output (shows binary search progress) |
+| `-q` | Quiet output (prints only the MTU value, for scripting) |
 
 ### Example Output
 
