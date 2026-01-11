@@ -56,3 +56,7 @@ wire-seek -6 example.com           # Force IPv6
 - **Windows**: Uses `IP_DONTFRAGMENT` socket option
 - **macOS/Darwin**: Uses control messages via `SetControlMessage`
 - **Unprivileged ICMP**: Falls back to UDP-based ICMP on Linux 3.0+ when raw sockets unavailable
+
+## Git Commit Guidelines
+
+- Do NOT include `Co-Authored-By` lines in commit messages
