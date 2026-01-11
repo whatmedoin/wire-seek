@@ -3,43 +3,39 @@ package mtu
 import (
 	"net"
 	"testing"
+
+	"github.com/yeya/wire-seek/output"
 )
 
 func TestNewDiscoverer(t *testing.T) {
 	tests := []struct {
-		name       string
-		target     net.IP
-		verbose    bool
-		wantIPv6   bool
+		name     string
+		target   net.IP
+		wantIPv6 bool
 	}{
 		{
 			name:     "IPv4 address",
 			target:   net.ParseIP("8.8.8.8"),
-			verbose:  false,
 			wantIPv6: false,
 		},
 		{
 			name:     "IPv6 address",
 			target:   net.ParseIP("2001:4860:4860::8888"),
-			verbose:  true,
 			wantIPv6: true,
 		},
 		{
 			name:     "IPv4-mapped IPv6 treated as IPv4",
 			target:   net.ParseIP("::ffff:8.8.8.8").To4(),
-			verbose:  false,
 			wantIPv6: false,
 		},
 	}
 
+	log := output.New(output.LevelNormal)
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			d := NewDiscoverer(tt.target, tt.verbose)
+			d := NewDiscoverer(tt.target, log)
 			if d.isIPv6 != tt.wantIPv6 {
 				t.Errorf("NewDiscoverer().isIPv6 = %v, want %v", d.isIPv6, tt.wantIPv6)
-			}
-			if d.verbose != tt.verbose {
-				t.Errorf("NewDiscoverer().verbose = %v, want %v", d.verbose, tt.verbose)
 			}
 		})
 	}
