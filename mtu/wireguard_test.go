@@ -63,3 +63,66 @@ func TestWireGuardOverheadConstants(t *testing.T) {
 		t.Errorf("WireGuardOverheadIPv6 = %d, want 80", WireGuardOverheadIPv6)
 	}
 }
+
+func TestCalculateMTU(t *testing.T) {
+	tests := []struct {
+		name       string
+		pathMTU    int
+		isIPv6     bool
+		tunnelMode bool
+		expected   int
+	}{
+		{
+			name:       "tunnel mode IPv4 - no overhead subtraction",
+			pathMTU:    1420,
+			isIPv6:     false,
+			tunnelMode: true,
+			expected:   1420,
+		},
+		{
+			name:       "tunnel mode IPv6 - no overhead subtraction",
+			pathMTU:    1400,
+			isIPv6:     true,
+			tunnelMode: true,
+			expected:   1400,
+		},
+		{
+			name:       "endpoint mode IPv4 - subtracts 60 bytes",
+			pathMTU:    1500,
+			isIPv6:     false,
+			tunnelMode: false,
+			expected:   1440,
+		},
+		{
+			name:       "endpoint mode IPv6 - subtracts 80 bytes",
+			pathMTU:    1500,
+			isIPv6:     true,
+			tunnelMode: false,
+			expected:   1420,
+		},
+		{
+			name:       "tunnel mode preserves exact path MTU",
+			pathMTU:    1372,
+			isIPv6:     false,
+			tunnelMode: true,
+			expected:   1372,
+		},
+		{
+			name:       "endpoint mode with reduced path MTU",
+			pathMTU:    1400,
+			isIPv6:     false,
+			tunnelMode: false,
+			expected:   1340,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := CalculateMTU(tt.pathMTU, tt.isIPv6, tt.tunnelMode)
+			if result != tt.expected {
+				t.Errorf("CalculateMTU(%d, %v, %v) = %d, want %d",
+					tt.pathMTU, tt.isIPv6, tt.tunnelMode, result, tt.expected)
+			}
+		})
+	}
+}

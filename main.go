@@ -16,6 +16,7 @@ func main() {
 		ipv6    bool
 		verbose bool
 		quiet   bool
+		tunnel  bool
 		minMTU  int
 		maxMTU  int
 	)
@@ -24,6 +25,7 @@ func main() {
 	flag.BoolVar(&ipv6, "6", false, "Use IPv6 instead of IPv4")
 	flag.BoolVar(&verbose, "v", false, "Verbose output (debug diagnostics)")
 	flag.BoolVar(&quiet, "q", false, "Quiet output (only print MTU value, for scripting)")
+	flag.BoolVar(&tunnel, "tunnel", false, "Testing through an existing tunnel (skip WireGuard overhead calculation)")
 	flag.IntVar(&minMTU, "min-mtu", 0, "Minimum MTU to test (default: 576 for IPv4, 1280 for IPv6)")
 	flag.IntVar(&maxMTU, "max-mtu", 0, "Maximum MTU to test (default: 1500)")
 	flag.Parse()
@@ -33,8 +35,8 @@ func main() {
 		if flag.NArg() > 0 {
 			target = flag.Arg(0)
 		} else {
-			fmt.Fprintf(os.Stderr, "Usage: wire-seek [-6] [-v] [-q] [-min-mtu N] [-max-mtu N] -target <host>\n")
-			fmt.Fprintf(os.Stderr, "       wire-seek [-6] [-v] [-q] [-min-mtu N] [-max-mtu N] <host>\n\n")
+			fmt.Fprintf(os.Stderr, "Usage: wire-seek [-6] [-v] [-q] [-tunnel] [-min-mtu N] [-max-mtu N] -target <host>\n")
+			fmt.Fprintf(os.Stderr, "       wire-seek [-6] [-v] [-q] [-tunnel] [-min-mtu N] [-max-mtu N] <host>\n\n")
 			fmt.Fprintf(os.Stderr, "Options:\n")
 			flag.PrintDefaults()
 			os.Exit(1)
@@ -100,20 +102,27 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Calculate WireGuard MTU
-	wgMTU := mtu.CalculateWireGuardMTU(pathMTU, isIPv6)
+	// Calculate result MTU based on mode
+	resultMTU := mtu.CalculateMTU(pathMTU, isIPv6, tunnel)
 
 	log.Info("\n")
 	log.Info("Results:\n")
-	log.Info("  Path MTU:      %d bytes\n", pathMTU)
-	log.Info("  WireGuard MTU: %d bytes\n", wgMTU)
-	log.Info("\n")
-	log.Info("Add to your WireGuard config:\n")
-	log.Info("  MTU = %d\n", wgMTU)
+	log.Info("  Path MTU: %d bytes\n", pathMTU)
+
+	if tunnel {
+		log.Info("\n")
+		log.Info("Tunnel mode: Path MTU is your effective tunnel MTU.\n")
+		log.Info("Your current tunnel MTU of %d is working correctly.\n", resultMTU)
+	} else {
+		log.Info("  WireGuard MTU: %d bytes\n", resultMTU)
+		log.Info("\n")
+		log.Info("Add to your WireGuard config:\n")
+		log.Info("  MTU = %d\n", resultMTU)
+	}
 
 	// In quiet mode, output only the MTU value
 	if quiet {
-		log.Result("%d\n", wgMTU)
+		log.Result("%d\n", resultMTU)
 	}
 }
 

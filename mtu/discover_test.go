@@ -121,12 +121,12 @@ func TestConstants(t *testing.T) {
 
 func TestNewDiscovererWithCustomMTU(t *testing.T) {
 	tests := []struct {
-		name      string
-		target    net.IP
-		minMTU    int
-		maxMTU    int
-		wantMin   int
-		wantMax   int
+		name    string
+		target  net.IP
+		minMTU  int
+		maxMTU  int
+		wantMin int
+		wantMax int
 	}{
 		{
 			name:    "Default IPv4 range",

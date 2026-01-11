@@ -31,13 +31,16 @@ go vet ./...
 ## Usage
 
 ```bash
-# Basic usage
+# Basic usage (testing path to WireGuard endpoint, outside tunnel)
 wire-seek <target-host>
 
 # With options
 wire-seek -v -target example.com   # Verbose mode
 wire-seek -6 example.com           # Force IPv6
+wire-seek -tunnel 8.8.8.8          # Testing THROUGH an existing tunnel
 ```
+
+**Important**: Use `-tunnel` flag when testing through an existing WireGuard tunnel to avoid double-subtracting overhead.
 
 ## Architecture
 

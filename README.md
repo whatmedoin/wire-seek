@@ -20,6 +20,22 @@ If your WireGuard MTU is too high, packets get fragmented (slow). If it's too lo
    - IPv4: 60 bytes (20 IP + 8 UDP + 32 WireGuard)
    - IPv6: 80 bytes (40 IP + 8 UDP + 32 WireGuard)
 
+## Important: Testing Inside vs Outside a Tunnel
+
+> **You MUST use the `--tunnel` flag when testing through an existing WireGuard tunnel.**
+
+| Scenario | Command | What It Does |
+|----------|---------|--------------|
+| **Setting up a new tunnel** | `wire-seek <endpoint-ip>` | Tests path to endpoint, subtracts WireGuard overhead |
+| **Verifying existing tunnel** | `wire-seek --tunnel 8.8.8.8` | Tests through tunnel, reports effective MTU directly |
+
+**Why does this matter?**
+
+- **Without `--tunnel`**: Wire-Seek subtracts WireGuard overhead (60/80 bytes) from the path MTU
+- **With `--tunnel`**: The overhead is already applied by your tunnel, so we report the path MTU as-is
+
+If you test through a tunnel WITHOUT the `--tunnel` flag, you'll get a value ~60 bytes too low (double subtraction).
+
 ## Installation
 
 ### From Releases
@@ -54,13 +70,16 @@ go build -o wire-seek .
 sudo wire-seek <target-host>
 
 # Examples
-sudo wire-seek 10.0.0.1              # WireGuard peer IP
+sudo wire-seek 10.0.0.1              # WireGuard peer IP (outside tunnel)
 sudo wire-seek vpn.example.com       # Hostname
 sudo wire-seek -v 8.8.8.8            # Verbose mode
 sudo wire-seek -6 2001:db8::1        # Force IPv6
 sudo wire-seek -q vpn.example.com    # Quiet mode (for scripting)
 sudo wire-seek -max-mtu 1420 10.0.0.1    # Limit to WireGuard-safe range
 sudo wire-seek -max-mtu 9000 10.0.0.1    # Jumbo frame network
+
+# Testing through an existing tunnel (IMPORTANT: use --tunnel flag!)
+sudo wire-seek -tunnel 8.8.8.8       # Verify tunnel MTU is working
 ```
 
 ### Options
@@ -71,6 +90,7 @@ sudo wire-seek -max-mtu 9000 10.0.0.1    # Jumbo frame network
 | `-6` | Use IPv6 instead of IPv4 |
 | `-v` | Verbose output (shows binary search progress) |
 | `-q` | Quiet output (prints only the MTU value, for scripting) |
+| `-tunnel` | Testing through an existing tunnel (skips WireGuard overhead calculation) |
 | `-min-mtu` | Minimum MTU to test (default: 576 for IPv4, 1280 for IPv6) |
 | `-max-mtu` | Maximum MTU to test (default: 1500, increase for jumbo frames) |
 

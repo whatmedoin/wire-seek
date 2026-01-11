@@ -27,3 +27,18 @@ func CalculateWireGuardMTU(pathMTU int, isIPv6 bool) int {
 	}
 	return pathMTU - WireGuardOverheadIPv4
 }
+
+// CalculateMTU returns the appropriate MTU based on whether we're testing
+// through an existing tunnel or to a WireGuard endpoint.
+//
+// When tunnelMode is true, the path MTU is returned as-is because the
+// WireGuard overhead is already applied by the tunnel.
+//
+// When tunnelMode is false, the WireGuard overhead is subtracted to give
+// the optimal MTU setting for a new tunnel.
+func CalculateMTU(pathMTU int, isIPv6 bool, tunnelMode bool) int {
+	if tunnelMode {
+		return pathMTU
+	}
+	return CalculateWireGuardMTU(pathMTU, isIPv6)
+}
