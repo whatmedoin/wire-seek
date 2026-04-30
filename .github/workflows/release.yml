@@ -4,6 +4,7 @@ on:
   push:
     tags:
       - 'v*'
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -34,6 +35,9 @@ jobs:
 
           # Linux ARM64
           GOOS=linux GOARCH=arm64 go build -ldflags="-s -w" -o dist/wire-seek-linux-arm64 .
+
+          # Linux ARMv7
+          GOOS=linux GOARCH=arm GOARM=7 go build -ldflags="-s -w" -o dist/wire-seek-linux-armv7 .
 
           # macOS AMD64
           GOOS=darwin GOARCH=amd64 go build -ldflags="-s -w" -o dist/wire-seek-darwin-amd64 .
